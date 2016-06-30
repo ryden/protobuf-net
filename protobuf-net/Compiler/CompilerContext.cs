@@ -269,6 +269,7 @@ namespace ProtoBuf.Compiler
             this.methodPairs = methodPairs;
             this.il = il;
             // nonPublic = false; <== implicit
+            nonPublic = true;
             this.isWriter = isWriter;
             this.model = model;
             this.metadataVersion = metadataVersion;
@@ -887,9 +888,20 @@ namespace ProtoBuf.Compiler
 
         public void LoadValue(FieldInfo field)
         {
-            CheckAccessibility(field);
-            OpCode code = field.IsStatic ? OpCodes.Ldsfld : OpCodes.Ldfld;
-            il.Emit(code, field);
+            if (!field.IsPublic)
+            {
+                LoadValue(field.DeclaringType);
+                LoadValue(field.Name);
+                LoadValue(field.IsStatic ? 1 : 0);
+                EmitCall(MapType(typeof(BclHelpers)).GetMethod("GetFieldWithReflection"));
+                CastFromObject(field.FieldType);
+            }
+            else
+            {
+                CheckAccessibility(field);
+                OpCode code = field.IsStatic ? OpCodes.Ldsfld : OpCodes.Ldfld;
+                il.Emit(code, field);
+            }
 #if DEBUG_COMPILE
             Helpers.DebugWriteLine(code + ": " + field + " on " + field.DeclaringType);
 #endif
@@ -914,22 +926,57 @@ namespace ProtoBuf.Compiler
 #endif
         public void StoreValue(FieldInfo field)
         {
-            CheckAccessibility(field);
-            OpCode code = field.IsStatic ? OpCodes.Stsfld : OpCodes.Stfld;
-            il.Emit(code, field);
+            if (!field.IsPublic)
+            {
+                CastToObject(field.FieldType);
+                LoadValue(field.DeclaringType);
+                LoadValue(field.Name);
+                LoadValue(field.IsStatic ? 1 : 0);
+                EmitCall(MapType(typeof(BclHelpers)).GetMethod("SetFieldWithReflection"));
+            }
+            else
+            {
+                CheckAccessibility(field);
+                OpCode code = field.IsStatic ? OpCodes.Stsfld : OpCodes.Stfld;
+                il.Emit(code, field);
+            }
 #if DEBUG_COMPILE
             Helpers.DebugWriteLine(code + ": " + field + " on " + field.DeclaringType);
 #endif
         }
         public void LoadValue(PropertyInfo property)
         {
-            CheckAccessibility(property);
-            EmitCall(Helpers.GetGetMethod(property, true, true));
+            MethodInfo getMethod = Helpers.GetGetMethod(property, true, true);
+            if (!getMethod.IsPublic)
+            {
+                LoadValue(property.DeclaringType);
+                LoadValue(property.Name);
+                LoadValue(getMethod.IsStatic ? 1 : 0);
+                EmitCall(MapType(typeof(BclHelpers)).GetMethod("GetPropertyWithReflection"));
+                CastFromObject(property.PropertyType);
+            }
+            else
+            {
+                CheckAccessibility(property);
+                EmitCall(getMethod);
+            }
         }
         public void StoreValue(PropertyInfo property)
         {
-            CheckAccessibility(property);
-            EmitCall(Helpers.GetSetMethod(property, true, true));
+            MethodInfo setMethod = Helpers.GetSetMethod(property, true, true);
+            if (!setMethod.IsPublic)
+            {
+                CastToObject(property.PropertyType);
+                LoadValue(property.DeclaringType);
+                LoadValue(property.Name);
+                LoadValue(setMethod.IsStatic ? 1 : 0);
+                EmitCall(MapType(typeof(BclHelpers)).GetMethod("SetPropertyWithReflection"));
+            }
+            else
+            {
+                CheckAccessibility(property);
+                EmitCall(setMethod);
+            }
         }
 
         //internal void EmitInstance()

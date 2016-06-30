@@ -1169,6 +1169,8 @@ namespace ProtoBuf.Meta
             ILGenerator il;
             int knownTypesCategory;
             FieldBuilder knownTypes;
+            FieldBuilder instanceField;
+            ConstructorBuilder constructor;
             Type knownTypesLookupType;
             WriteGetKeyImpl(type, hasInheritance, methodPairs, ilVersion, assemblyName, out il, out knownTypesCategory, out knownTypes, out knownTypesLookupType);
 
@@ -1180,8 +1182,10 @@ namespace ProtoBuf.Meta
 
             Compiler.CompilerContext ctx = WriteSerializeDeserialize(assemblyName, type, methodPairs, ilVersion, ref il);
 
-            WriteConstructors(type, ref index, methodPairs, ref il, knownTypesCategory, knownTypes, knownTypesLookupType, ctx);
+            instanceField = type.DefineField("instance", type, FieldAttributes.Private | FieldAttributes.InitOnly | FieldAttributes.Static);
 
+            WriteConstructors(type, ref index, methodPairs, ref il, instanceField, knownTypesCategory, knownTypes, knownTypesLookupType, ctx, out constructor);
+            WriteStaticAccessors(type, constructor, instanceField);
 
 #if COREFX
             Type finalType = type.CreateTypeInfo().AsType();
@@ -1216,10 +1220,38 @@ namespace ProtoBuf.Meta
             return result;
         }
 #endif
-        private void WriteConstructors(TypeBuilder type, ref int index, SerializerPair[] methodPairs, ref ILGenerator il, int knownTypesCategory, FieldBuilder knownTypes, Type knownTypesLookupType, Compiler.CompilerContext ctx)
+        private void WriteStaticAccessors(TypeBuilder type, ConstructorBuilder constructor, FieldBuilder instanceField)
         {
-            type.DefineDefaultConstructor(MethodAttributes.Public);
+            // _Serialize
+            var serializeMethod = type.DefineMethod("_Serialize", MethodAttributes.Static | MethodAttributes.Public, typeof(void), new Type[] { typeof(Stream), typeof(object) });
+            var il = serializeMethod.GetILGenerator();
+
+            il.Emit(OpCodes.Ldsfld, instanceField);
+            il.Emit(OpCodes.Ldarg_0);
+            il.Emit(OpCodes.Ldarg_1);
+            il.Emit(OpCodes.Callvirt, typeof(TypeModel).GetMethod("Serialize", new Type[] { typeof(Stream), typeof(object) }));
+            il.Emit(OpCodes.Ret);
+
+            // _Deserialize
+            var deserializeMethod = type.DefineMethod("_Deserialize", MethodAttributes.Static | MethodAttributes.Public, typeof(object), new Type[] { typeof(Stream), typeof(object), typeof(Type) });
+            il = deserializeMethod.GetILGenerator();
+
+            il.Emit(OpCodes.Ldsfld, instanceField);
+            il.Emit(OpCodes.Ldarg_0);
+            il.Emit(OpCodes.Ldarg_1);
+            il.Emit(OpCodes.Ldarg_2);
+            il.Emit(OpCodes.Callvirt, typeof(TypeModel).GetMethod("Deserialize", new Type[] { typeof(Stream), typeof(object), typeof(Type) }));
+            il.Emit(OpCodes.Ret);
+        }
+
+        private void WriteConstructors(TypeBuilder type, ref int index, SerializerPair[] methodPairs, ref ILGenerator il, FieldBuilder instanceField, int knownTypesCategory, FieldBuilder knownTypes, Type knownTypesLookupType, Compiler.CompilerContext ctx, out ConstructorBuilder constructor)
+        {
+            constructor = type.DefineDefaultConstructor(MethodAttributes.Public);
             il = type.DefineTypeInitializer().GetILGenerator();
+
+            il.Emit(OpCodes.Newobj, constructor);
+            il.Emit(OpCodes.Stsfld, instanceField);
+
             switch (knownTypesCategory)
             {
                 case KnownTypes_Array:

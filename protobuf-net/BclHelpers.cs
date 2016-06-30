@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Reflection;
 namespace ProtoBuf
 {
@@ -612,6 +613,114 @@ namespace ProtoBuf
             }
             ProtoWriter.EndSubItem(token, dest);
 #endif
+        }
+
+
+
+        private static Dictionary<Type, Dictionary<string, FieldInfo>> fieldInfoCache = new Dictionary<Type, Dictionary<string, FieldInfo>>();
+        /// <summary>
+        /// Gets the FieldInfo structure for a field in a given type.
+        /// </summary>
+        public static FieldInfo GetFieldInfo(Type type, string fieldName, bool isStatic)
+        {
+            Dictionary<string, FieldInfo> typeCache;
+            if (!fieldInfoCache.TryGetValue(type, out typeCache))
+            {
+                typeCache = new Dictionary<string, FieldInfo>();
+                fieldInfoCache.Add(type, typeCache);
+            }
+
+            FieldInfo fieldInfo;
+            if (!typeCache.TryGetValue(fieldName, out fieldInfo))
+            {
+                BindingFlags flags = BindingFlags.DeclaredOnly | BindingFlags.Public | BindingFlags.NonPublic;
+                flags |= isStatic ? BindingFlags.Static : BindingFlags.Instance;
+                fieldInfo = type.GetField(fieldName, flags);
+                typeCache.Add(fieldName, fieldInfo);
+            }
+            return fieldInfo;
+        }
+
+        /// <summary>
+        /// Gets the value of fieldName in the given type by using reflection to access it. Allows getting private field values.
+        /// </summary>
+        public static object GetFieldWithReflection(object instance, Type type, string fieldName, bool isStatic)
+        {
+            FieldInfo info = GetFieldInfo(type, fieldName, isStatic);
+            if (info != null)
+            {
+                return info.GetValue(instance);
+            }
+            else
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Sets the value of fieldName in the given type by using reflection to access it. Allows setting private field values.
+        /// </summary>
+        public static void SetFieldWithReflection(object instance, object value, Type type, string fieldName, bool isStatic)
+        {
+            FieldInfo info = GetFieldInfo(type, fieldName, isStatic);
+            if (info != null)
+            {
+                 info.SetValue(instance, value);
+            }
+        }
+
+
+
+        private static Dictionary<Type, Dictionary<string, PropertyInfo>> propertyInfoCache = new Dictionary<Type, Dictionary<string, PropertyInfo>>();
+        /// <summary>
+        /// Gets the PropertyInfo structure for a property in a given type.
+        /// </summary>
+        public static PropertyInfo GetPropertyInfo(Type type, string propertyName, bool isStatic)
+        {
+            Dictionary<string, PropertyInfo> typeCache;
+            if (!propertyInfoCache.TryGetValue(type, out typeCache))
+            {
+                typeCache = new Dictionary<string, PropertyInfo>();
+                propertyInfoCache.Add(type, typeCache);
+            }
+
+            PropertyInfo propertyInfo;
+            if (!typeCache.TryGetValue(propertyName, out propertyInfo))
+            {
+                BindingFlags flags = BindingFlags.DeclaredOnly | BindingFlags.Public | BindingFlags.NonPublic;
+                flags |= isStatic ? BindingFlags.Static : BindingFlags.Instance;
+                propertyInfo = type.GetProperty(propertyName, flags);
+                typeCache.Add(propertyName, propertyInfo);
+            }
+            return propertyInfo;
+        }
+
+        /// <summary>
+        /// Gets the value of propertyName in the given type by using reflection to access it. Allows getting private property values.
+        /// </summary>
+        public static object GetPropertyWithReflection(object instance, Type type, string propertyName, bool isStatic)
+        {
+            PropertyInfo info = GetPropertyInfo(type, propertyName, isStatic);
+            if (info != null)
+            {
+                return info.GetGetMethod(true).Invoke(instance, null);
+            }
+            else
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Sets the value of propertyName in the given type by using reflection to access it. Allows setting private property values.
+        /// </summary>
+        public static void SetPropertyWithReflection(object instance, object value, Type type, string propertyName, bool isStatic)
+        {
+            PropertyInfo info = GetPropertyInfo(type, propertyName, isStatic);
+            if (info != null)
+            {
+                info.GetSetMethod(true).Invoke(instance, new object[] { value });
+            }
         }
     }
 }

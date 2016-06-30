@@ -70,12 +70,6 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\protobuf-net_IKVM\protobuf-net_IKVM.csproj">
-      <Project>{7d09cd88-098b-499b-95d2-7394dfbc9b5d}</Project>
-      <Name>protobuf-net_IKVM</Name>
-    </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
     <None Include="precompile.ico" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
