@@ -111,7 +111,7 @@ namespace ProtoBuf.Serializers
             }
             else
             {
-                ctx.WriteNullCheckedTail(itemType, Tail, null);
+                ctx.WriteNullCheckedTail(itemType, Tail, null, null);
             }
 
             // i++

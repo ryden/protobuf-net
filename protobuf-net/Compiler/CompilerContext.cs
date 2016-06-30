@@ -58,7 +58,7 @@ namespace ProtoBuf.Compiler
                 CompilerContext ctx = new CompilerContext(type, true, true, model, typeof(object));
                 ctx.LoadValue(ctx.InputValue);
                 ctx.CastFromObject(type);
-                ctx.WriteNullCheckedTail(type, head, null);
+                ctx.WriteNullCheckedTail(type, head, null, null);
                 ctx.Emit(OpCodes.Ret);
                 return (ProtoSerializer)ctx.method.CreateDelegate(
                     typeof(ProtoSerializer));
@@ -579,7 +579,7 @@ namespace ProtoBuf.Compiler
 
         private int nextLabel;
 
-        internal void WriteNullCheckedTail(Type type, IProtoSerializer tail, Compiler.Local valueFrom)
+        internal void WriteNullCheckedTail(Type type, IProtoSerializer tail, Compiler.Local valueFrom, Type overrideType)
         {
             if (Helpers.IsValueType(type))
             {
@@ -609,6 +609,10 @@ namespace ProtoBuf.Compiler
             else
             { // ref-type; do a null-check
                 LoadValue(valueFrom);
+                if (overrideType != null)
+                {
+                    Cast(overrideType);
+                }
                 CopyValue();
                 CodeLabel hasVal = DefineLabel(), @end = DefineLabel();
                 BranchIfTrue(hasVal, true);
@@ -620,7 +624,7 @@ namespace ProtoBuf.Compiler
             }
         }
 
-        internal void ReadNullCheckedTail(Type type, IProtoSerializer tail, Compiler.Local valueFrom)
+        internal void ReadNullCheckedTail(Type type, IProtoSerializer tail, Compiler.Local valueFrom, Type overrideType)
         {
 #if !FX11
             Type underlyingType;
@@ -652,7 +656,17 @@ namespace ProtoBuf.Compiler
             // either a ref-type of a non-nullable struct; treat "as is", even if null
             // (the type-serializer will handle the null case; it needs to allow null
             // inputs to perform the correct type of subclass creation)
-            tail.EmitRead(this, valueFrom);
+            if (overrideType != null)
+            {
+                using (Local loc = GetLocalWithValue(overrideType, valueFrom))
+                {
+                    tail.EmitRead(this, loc);
+                }
+            }
+            else
+            {
+                tail.EmitRead(this, valueFrom);
+            }
         }
 
         public void EmitCtor(Type type)

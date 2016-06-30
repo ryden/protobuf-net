@@ -19,16 +19,18 @@ namespace ProtoBuf.Serializers
         public override Type ExpectedType { get { return forType; } }
         private readonly PropertyInfo property;
         private readonly Type forType;
+        private readonly Type overrideType;
         public override bool RequiresOldValue { get { return true; } }
         public override bool ReturnsValue { get { return false; } }
         private readonly bool readOptionsWriteValue;
         private readonly MethodInfo shadowSetter;
-        public PropertyDecorator(TypeModel model, Type forType, PropertyInfo property, IProtoSerializer tail) : base(tail)
+        public PropertyDecorator(TypeModel model, Type forType, Type overrideType, PropertyInfo property, IProtoSerializer tail) : base(tail)
         {
             Helpers.DebugAssert(forType != null);
             Helpers.DebugAssert(property != null);
             this.forType = forType;
             this.property = property;
+            this.overrideType = overrideType;
             SanityCheck(model, property, tail, out readOptionsWriteValue, true, true);
             shadowSetter = GetShadowSetter(model, property);
         }
@@ -95,7 +97,7 @@ namespace ProtoBuf.Serializers
         {
             ctx.LoadAddress(valueFrom, ExpectedType);
             ctx.LoadValue(property);
-            ctx.WriteNullCheckedTail(property.PropertyType, Tail, null);
+            ctx.WriteNullCheckedTail(property.PropertyType, Tail, null, overrideType);
         }
         protected override void EmitRead(Compiler.CompilerContext ctx, Compiler.Local valueFrom)
         {
@@ -115,11 +117,12 @@ namespace ProtoBuf.Serializers
                     ctx.LoadValue(property); // stack is: old-value
                 }
                 Type propertyType = property.PropertyType;
-                ctx.ReadNullCheckedTail(propertyType, Tail, null); // stack is [new-value]
+                ctx.ReadNullCheckedTail(propertyType, Tail, null, overrideType); // stack is [new-value]
 
                 if (writeValue)
                 {
-                    using (Compiler.Local newVal = new Compiler.Local(ctx, property.PropertyType))
+                    var newType = overrideType != null ? overrideType : property.PropertyType;
+                    using (Compiler.Local newVal = new Compiler.Local(ctx, newType))
                     {
                         ctx.StoreValue(newVal); // stack is empty
 
@@ -133,6 +136,10 @@ namespace ProtoBuf.Serializers
                         // assign the value
                         ctx.LoadAddress(loc, ExpectedType); // parent-addr
                         ctx.LoadValue(newVal); // parent-obj|new-value
+                        if (overrideType != null)
+                        {
+                            ctx.Cast(property.PropertyType);
+                        }
                         if (shadowSetter == null)
                         {
                             ctx.StoreValue(property); // empty

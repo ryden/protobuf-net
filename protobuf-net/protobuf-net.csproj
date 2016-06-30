@@ -133,7 +133,7 @@
     <DefineConstants>TRACE;FEAT_COMPILER PLAT_BINARYFORMATTER PLAT_XMLSERIALIZER PLAT_NO_INTERLOCKED FEAT_SAFE</DefineConstants>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <DocumentationFile>bin\Net20\protobuf-net.xml</DocumentationFile>
-    <Optimize>false</Optimize>
+    <Optimize>true</Optimize>
     <DebugType>pdbonly</DebugType>
     <PlatformTarget>AnyCPU</PlatformTarget>
     <CodeAnalysisLogFile>bin\Net20\protobuf-net.dll.CodeAnalysisLog.xml</CodeAnalysisLogFile>

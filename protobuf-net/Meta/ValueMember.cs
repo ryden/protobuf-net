@@ -28,7 +28,7 @@ namespace ProtoBuf.Meta
         /// Gets the member (field/property) which this member relates to.
         /// </summary>
         public MemberInfo Member { get { return member; } }
-        private readonly Type parentType, itemType, defaultType, memberType;
+        private readonly Type parentType, itemType, defaultType, memberType, overrideType;
         private object defaultValue;
         /// <summary>
         /// Within a list / array / etc, the type of object for each item in the list (especially useful with ArrayList)
@@ -38,6 +38,10 @@ namespace ProtoBuf.Meta
         /// The underlying type of the member
         /// </summary>
         public Type MemberType { get { return memberType; } }
+        /// <summary>
+        /// Override the field/property type with this type when serializing it
+        /// </summary>
+        public Type OverrideType { get { return overrideType; } }
         /// <summary>
         /// For abstract types (IList etc), the type of concrete object to create (if required)
         /// </summary>
@@ -63,8 +67,8 @@ namespace ProtoBuf.Meta
         /// <summary>
         /// Creates a new ValueMember instance
         /// </summary>
-        public ValueMember(RuntimeTypeModel model, Type parentType, int fieldNumber, MemberInfo member, Type memberType, Type itemType, Type defaultType, DataFormat dataFormat, object defaultValue) 
-            : this(model, fieldNumber,memberType, itemType, defaultType, dataFormat)
+        public ValueMember(RuntimeTypeModel model, Type parentType, int fieldNumber, MemberInfo member, Type overrideType, Type memberType, Type itemType, Type defaultType, DataFormat dataFormat, object defaultValue) 
+            : this(model, fieldNumber, overrideType, memberType, itemType, defaultType, dataFormat)
         {
             if (member == null) throw new ArgumentNullException("member");
             if (parentType == null) throw new ArgumentNullException("parentType");
@@ -96,12 +100,13 @@ namespace ProtoBuf.Meta
         /// <summary>
         /// Creates a new ValueMember instance
         /// </summary>
-        internal ValueMember(RuntimeTypeModel model, int fieldNumber, Type memberType, Type itemType, Type defaultType, DataFormat dataFormat) 
+        internal ValueMember(RuntimeTypeModel model, int fieldNumber, Type overrideType, Type memberType, Type itemType, Type defaultType, DataFormat dataFormat) 
         {
 
             if (memberType == null) throw new ArgumentNullException("memberType");
             if (model == null) throw new ArgumentNullException("model");
             this.fieldNumber = fieldNumber;
+            this.overrideType = overrideType;
             this.memberType = memberType;
             this.itemType = itemType;
             this.defaultType = defaultType;
@@ -319,6 +324,11 @@ namespace ProtoBuf.Meta
                 model.TakeLock(ref opaqueToken);// check nobody is still adding this type
                 WireType wireType;
                 Type finalType = itemType == null ? memberType : itemType;
+                if (overrideType != null)
+                {
+                    finalType = overrideType;
+                }
+
                 IProtoSerializer ser = TryGetCoreSerializer(model, dataFormat, finalType, out wireType, asReference, dynamicType, OverwriteList, true);
                 if (ser == null)
                 {
@@ -379,14 +389,14 @@ namespace ProtoBuf.Meta
                     PropertyInfo prop = member as PropertyInfo;
                     if (prop != null)
                     {
-                        ser = new PropertyDecorator(model, parentType, (PropertyInfo)member, ser);
+                        ser = new PropertyDecorator(model, parentType, overrideType, (PropertyInfo)member, ser);
                     }
                     else
                     {
                         FieldInfo fld = member as FieldInfo;
                         if (fld != null)
                         {
-                            ser = new FieldDecorator(parentType, (FieldInfo)member, ser);
+                            ser = new FieldDecorator(parentType, overrideType, (FieldInfo)member, ser);
                         }
                         else
                         {

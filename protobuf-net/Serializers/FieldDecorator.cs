@@ -20,13 +20,15 @@ namespace ProtoBuf.Serializers
         public override Type ExpectedType { get { return forType; } }
         private readonly FieldInfo field;
         private readonly Type forType;
+        private readonly Type overrideType;
         public override bool RequiresOldValue { get { return true; } }
         public override bool ReturnsValue { get { return false; } }
-        public FieldDecorator(Type forType, FieldInfo field, IProtoSerializer tail) : base(tail)
+        public FieldDecorator(Type forType, Type overrideType, FieldInfo field, IProtoSerializer tail) : base(tail)
         {
             Helpers.DebugAssert(forType != null);
             Helpers.DebugAssert(field != null);
             this.forType = forType;
+            this.overrideType = overrideType;
             this.field = field;
         }
 #if !FEAT_IKVM
@@ -50,7 +52,7 @@ namespace ProtoBuf.Serializers
         {
             ctx.LoadAddress(valueFrom, ExpectedType);
             ctx.LoadValue(field);
-            ctx.WriteNullCheckedTail(field.FieldType, Tail, null);
+            ctx.WriteNullCheckedTail(field.FieldType, Tail, null, overrideType);
         }
         protected override void EmitRead(Compiler.CompilerContext ctx, Compiler.Local valueFrom)
         {
@@ -62,11 +64,12 @@ namespace ProtoBuf.Serializers
                     ctx.LoadValue(field);  
                 }
                 // value is either now on the stack or not needed
-                ctx.ReadNullCheckedTail(field.FieldType, Tail, null);
+                ctx.ReadNullCheckedTail(field.FieldType, Tail, null, overrideType);
 
                 if (Tail.ReturnsValue)
                 {
-                    using (Compiler.Local newVal = new Compiler.Local(ctx, field.FieldType))
+                    var newType = overrideType != null ? overrideType : field.FieldType;
+                    using (Compiler.Local newVal = new Compiler.Local(ctx, newType))
                     {
                         ctx.StoreValue(newVal);
                         if (Helpers.IsValueType(field.FieldType))
@@ -83,6 +86,10 @@ namespace ProtoBuf.Serializers
 
                             ctx.LoadAddress(loc, ExpectedType);
                             ctx.LoadValue(newVal);
+                            if (overrideType != null)
+                            {
+                                ctx.Cast(field.FieldType);
+                            }
                             ctx.StoreValue(field);
 
                             ctx.MarkLabel(allDone);

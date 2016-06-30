@@ -175,7 +175,7 @@ namespace ProtoBuf.Serializers
                     {
                         ctx.LoadValue((PropertyInfo)members[i]);
                     }
-                    ctx.WriteNullCheckedTail(type, tails[i], null);
+                    ctx.WriteNullCheckedTail(type, tails[i], null, null);
                 }
             }
         }
@@ -295,7 +295,7 @@ namespace ProtoBuf.Serializers
                             ctx.MarkLabel(handlers[i]);
                             IProtoSerializer tail = tails[i];
                             Compiler.Local oldValIfNeeded = tail.RequiresOldValue ? locals[i] : null;
-                            ctx.ReadNullCheckedTail(locals[i].Type, tail, oldValIfNeeded);
+                            ctx.ReadNullCheckedTail(locals[i].Type, tail, oldValIfNeeded, null);
                             if (tail.ReturnsValue)
                             {
                                 if (Helpers.IsValueType(locals[i].Type))

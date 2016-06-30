@@ -422,7 +422,7 @@ namespace ProtoBuf.Meta
                 }
                 Type defaultType = null;
                 ResolveListTypes(model, type, ref itemType, ref defaultType);
-                ValueMember fakeMember = new ValueMember(model, ProtoBuf.Serializer.ListItemTag, type, itemType, defaultType, DataFormat.Default);
+                ValueMember fakeMember = new ValueMember(model, ProtoBuf.Serializer.ListItemTag, null, type, itemType, defaultType, DataFormat.Default);
                 return new TypeSerializer(model, type, new int[] { ProtoBuf.Serializer.ListItemTag }, new IProtoSerializer[] { fakeMember.Serializer }, null, true, true, null, constructType, factory);
             }
             if (surrogate != null)
@@ -1145,7 +1145,7 @@ namespace ProtoBuf.Meta
                 if(attrib.TryGet("Value", out tmp)) defaultValue = tmp;
             }
             ValueMember vm = ((isEnum || normalizedAttribute.Tag > 0))
-                ? new ValueMember(model, type, normalizedAttribute.Tag, member, effectiveType, itemType, defaultType, normalizedAttribute.DataFormat, defaultValue)
+                ? new ValueMember(model, type, normalizedAttribute.Tag, member, null, effectiveType, itemType, defaultType, normalizedAttribute.DataFormat, defaultValue)
                     : null;
             if (vm != null)
             {
@@ -1238,16 +1238,16 @@ namespace ProtoBuf.Meta
         /// <summary>
         /// Adds a member (by name) to the MetaType
         /// </summary>        
-        public MetaType Add(int fieldNumber, string memberName)
+        public MetaType Add(int fieldNumber, string memberName, Type overrideType = null)
         {
-            AddField(fieldNumber, memberName, null, null, null);
+            AddField(fieldNumber, memberName, null, null, null, overrideType);
             return this;
         }
         /// <summary>
         /// Adds a member (by name) to the MetaType, returning the ValueMember rather than the fluent API.
         /// This is otherwise identical to Add.
         /// </summary>
-        public ValueMember AddField(int fieldNumber, string memberName)
+        public ValueMember AddField(int fieldNumber, string memberName, Type overrideType = null)
         {
             return AddField(fieldNumber, memberName, null, null, null);
         }
@@ -1364,18 +1364,18 @@ namespace ProtoBuf.Meta
         /// <summary>
         /// Adds a member (by name) to the MetaType
         /// </summary>        
-        public MetaType Add(int fieldNumber, string memberName, object defaultValue)
+        public MetaType Add(int fieldNumber, string memberName, object defaultValue, Type overrideType = null)
         {
-            AddField(fieldNumber, memberName, null, null, defaultValue);
+            AddField(fieldNumber, memberName, null, null, defaultValue, overrideType);
             return this;
         }
 
         /// <summary>
         /// Adds a member (by name) to the MetaType, including an itemType and defaultType for representing lists
         /// </summary>
-        public MetaType Add(int fieldNumber, string memberName, Type itemType, Type defaultType)
+        public MetaType Add(int fieldNumber, string memberName, Type itemType, Type defaultType, Type overrideType = null)
         {
-            AddField(fieldNumber, memberName, itemType, defaultType, null);
+            AddField(fieldNumber, memberName, itemType, defaultType, null, overrideType);
             return this;
         }
 
@@ -1383,12 +1383,12 @@ namespace ProtoBuf.Meta
         /// Adds a member (by name) to the MetaType, including an itemType and defaultType for representing lists, returning the ValueMember rather than the fluent API.
         /// This is otherwise identical to Add.
         /// </summary>
-        public ValueMember AddField(int fieldNumber, string memberName, Type itemType, Type defaultType)
+        public ValueMember AddField(int fieldNumber, string memberName, Type itemType, Type defaultType, Type overrideType = null)
         {
-            return AddField(fieldNumber, memberName, itemType, defaultType, null);
+            return AddField(fieldNumber, memberName, itemType, defaultType, null, overrideType);
         }
         
-        private ValueMember AddField(int fieldNumber, string memberName, Type itemType, Type defaultType, object defaultValue)
+        private ValueMember AddField(int fieldNumber, string memberName, Type itemType, Type defaultType, object defaultValue, Type overrideType)
         {
             MemberInfo mi = null;
 #if WINRT
@@ -1430,8 +1430,9 @@ namespace ProtoBuf.Meta
                     throw new NotSupportedException(mi.MemberType.ToString());
             }
 #endif
+
             ResolveListTypes(model, miType, ref itemType, ref defaultType);
-            ValueMember newField = new ValueMember(model, type, fieldNumber, mi, miType, itemType, defaultType, DataFormat.Default, defaultValue);
+            ValueMember newField = new ValueMember(model, type, fieldNumber, mi, overrideType, miType, itemType, defaultType, DataFormat.Default, defaultValue);
             Add(newField);
             return newField;
         }
